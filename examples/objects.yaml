@@ -1,0 +1,51 @@
+# A Deployment mid-rollout, its pods and its events, as the API returns them
+# (kubectl get -o yaml). Replace them with your own objects.
+deployment:
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: api
+    namespace: shop
+    generation: 4
+  spec:
+    replicas: 3
+  status:
+    observedGeneration: 4
+    replicas: 3
+    updatedReplicas: 3
+    readyReplicas: 2
+    availableReplicas: 2
+
+pods:
+  - metadata: {name: api-7c9f-abcde}
+    spec: {nodeName: node-a}
+    status:
+      phase: Running
+      conditions: [{type: Ready, status: "True"}]
+      containerStatuses:
+        - {name: api, ready: true, restartCount: 0, state: {running: {}}}
+  - metadata: {name: api-7c9f-fghij}
+    spec: {nodeName: node-b}
+    status:
+      phase: Running
+      conditions: [{type: Ready, status: "True"}]
+      containerStatuses:
+        - {name: api, ready: true, restartCount: 0, state: {running: {}}}
+  - metadata: {name: api-7c9f-klmno}
+    spec: {nodeName: node-b}
+    status:
+      phase: Running
+      conditions: [{type: Ready, status: "False"}]
+      containerStatuses:
+        - name: api
+          ready: false
+          restartCount: 6
+          state: {waiting: {reason: CrashLoopBackOff}}
+
+events:
+  - type: Warning
+    reason: BackOff
+    message: Back-off restarting failed container api in pod api-7c9f-klmno
+  - type: Normal
+    reason: ScalingReplicaSet
+    message: Scaled up replica set api-7c9f to 3

@@ -1,0 +1,293 @@
+{
+ "kubernetes": "v1.37.0",
+ "pods": {
+  "apiVersion": "v1",
+  "items": [
+   {
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+     "creationTimestamp": "2026-10-20T11:22:08Z",
+     "generateName": "bad-image-54d4ffb597-",
+     "generation": 1,
+     "labels": {
+      "app": "bad-image",
+      "pod-template-hash": "54d4ffb597"
+     },
+     "name": "bad-image-54d4ffb597-8wz8r",
+     "namespace": "kel-lab",
+     "ownerReferences": [
+      {
+       "apiVersion": "apps/v1",
+       "blockOwnerDeletion": true,
+       "controller": true,
+       "kind": "ReplicaSet",
+       "name": "bad-image-54d4ffb597",
+       "uid": "54018d87-46c3-4da4-854e-bb6daaf2b5ce"
+      }
+     ],
+     "resourceVersion": "8712",
+     "uid": "8a652433-81cc-467b-84ba-c6f885931657"
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "nginx:no-such-tag",
+       "imagePullPolicy": "IfNotPresent",
+       "name": "web",
+       "resources": {},
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+         "name": "kube-api-access-6fmjk",
+         "readOnly": true
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "enableServiceLinks": true,
+     "nodeName": "ork-playground-control-plane",
+     "preemptionPolicy": "PreemptLowerPriority",
+     "priority": 0,
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "serviceAccount": "default",
+     "serviceAccountName": "default",
+     "terminationGracePeriodSeconds": 30,
+     "tolerations": [
+      {
+       "effect": "NoExecute",
+       "key": "node.kubernetes.io/not-ready",
+       "operator": "Exists",
+       "tolerationSeconds": 300
+      },
+      {
+       "effect": "NoExecute",
+       "key": "node.kubernetes.io/unreachable",
+       "operator": "Exists",
+       "tolerationSeconds": 300
+      }
+     ],
+     "volumes": [
+      {
+       "name": "kube-api-access-6fmjk",
+       "projected": {
+        "defaultMode": 420,
+        "sources": [
+         {
+          "serviceAccountToken": {
+           "expirationSeconds": 3607,
+           "path": "token"
+          }
+         },
+         {
+          "configMap": {
+           "items": [
+            {
+             "key": "ca.crt",
+             "path": "ca.crt"
+            }
+           ],
+           "name": "kube-root-ca.crt"
+          }
+         },
+         {
+          "downwardAPI": {
+           "items": [
+            {
+             "fieldRef": {
+              "apiVersion": "v1",
+              "fieldPath": "metadata.namespace"
+             },
+             "path": "namespace"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "status": {
+     "conditions": [
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:10Z",
+       "observedGeneration": 1,
+       "status": "True",
+       "type": "PodReadyToStartContainers"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:08Z",
+       "observedGeneration": 1,
+       "status": "True",
+       "type": "Initialized"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:08Z",
+       "message": "containers with unready status: [web]",
+       "observedGeneration": 1,
+       "reason": "ContainersNotReady",
+       "status": "False",
+       "type": "Ready"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:08Z",
+       "message": "containers with unready status: [web]",
+       "observedGeneration": 1,
+       "reason": "ContainersNotReady",
+       "status": "False",
+       "type": "ContainersReady"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:08Z",
+       "observedGeneration": 1,
+       "status": "True",
+       "type": "PodScheduled"
+      }
+     ],
+     "containerStatuses": [
+      {
+       "image": "nginx:no-such-tag",
+       "imageID": "",
+       "lastState": {},
+       "name": "web",
+       "ready": false,
+       "restartCount": 0,
+       "started": false,
+       "state": {
+        "waiting": {
+         "message": "Back-off pulling image \"nginx:no-such-tag\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/nginx:no-such-tag\": failed to resolve reference \"docker.io/library/nginx:no-such-tag\": docker.io/library/nginx:no-such-tag: not found",
+         "reason": "ImagePullBackOff"
+        }
+       },
+       "volumeMounts": [
+        {
+         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+         "name": "kube-api-access-6fmjk",
+         "readOnly": true,
+         "recursiveReadOnly": "Disabled"
+        }
+       ]
+      }
+     ],
+     "hostIP": "172.18.0.2",
+     "hostIPs": [
+      {
+       "ip": "172.18.0.2"
+      }
+     ],
+     "observedGeneration": 1,
+     "phase": "Pending",
+     "podIP": "10.244.0.8",
+     "podIPs": [
+      {
+       "ip": "10.244.0.8"
+      }
+     ],
+     "qosClass": "BestEffort",
+     "resources": {},
+     "startTime": "2026-10-20T11:22:08Z"
+    }
+   }
+  ],
+  "kind": "List",
+  "metadata": {
+   "resourceVersion": ""
+  }
+ },
+ "workload": {
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+   "annotations": {
+    "deployment.kubernetes.io/revision": "1",
+    "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"bad-image\"},\"name\":\"bad-image\",\"namespace\":\"kel-lab\"},\"spec\":{\"replicas\":1,\"selector\":{\"matchLabels\":{\"app\":\"bad-image\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"bad-image\"}},\"spec\":{\"containers\":[{\"image\":\"nginx:no-such-tag\",\"name\":\"web\"}]}}}}\n"
+   },
+   "creationTimestamp": "2026-10-20T11:22:08Z",
+   "generation": 2,
+   "labels": {
+    "app": "bad-image"
+   },
+   "name": "bad-image",
+   "namespace": "kel-lab",
+   "resourceVersion": "2560",
+   "uid": "752ce115-c85e-4d85-973b-9502061207d3"
+  },
+  "spec": {
+   "progressDeadlineSeconds": 600,
+   "replicas": 1,
+   "revisionHistoryLimit": 10,
+   "selector": {
+    "matchLabels": {
+     "app": "bad-image"
+    }
+   },
+   "strategy": {
+    "rollingUpdate": {
+     "maxSurge": "25%",
+     "maxUnavailable": "25%"
+    },
+    "type": "RollingUpdate"
+   },
+   "template": {
+    "metadata": {
+     "labels": {
+      "app": "bad-image"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "image": "nginx:no-such-tag",
+       "imagePullPolicy": "IfNotPresent",
+       "name": "web",
+       "resources": {},
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File"
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Always",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "terminationGracePeriodSeconds": 30
+    }
+   }
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastTransitionTime": "2026-10-20T11:22:08Z",
+     "lastUpdateTime": "2026-10-20T11:22:08Z",
+     "message": "Deployment does not have minimum availability.",
+     "reason": "MinimumReplicasUnavailable",
+     "status": "False",
+     "type": "Available"
+    },
+    {
+     "lastTransitionTime": "2026-10-20T11:32:09Z",
+     "lastUpdateTime": "2026-10-20T11:32:09Z",
+     "message": "ReplicaSet \"bad-image-54d4ffb597\" has timed out progressing.",
+     "reason": "ProgressDeadlineExceeded",
+     "status": "False",
+     "type": "Progressing"
+    }
+   ],
+   "observedGeneration": 2,
+   "replicas": 1,
+   "terminatingReplicas": 0,
+   "unavailableReplicas": 1,
+   "updatedReplicas": 1
+  }
+ }
+}

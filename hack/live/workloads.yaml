@@ -1,0 +1,186 @@
+# Workloads for testdata/live: one healthy, the rest broken in different ways.
+#   kubectl apply -f hack/live/workloads.yaml
+# Then, once "stuck-rollout" is ready, break its rollout:
+#   kubectl -n kel-lab set image deploy/stuck-rollout web=nginx:no-such-tag
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kel-lab
+---
+# Healthy: should be "healthy".
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: healthy, namespace: kel-lab, labels: {app: healthy}}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: healthy}}
+  template:
+    metadata: {labels: {app: healthy}}
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.27
+        readinessProbe: {httpGet: {path: /, port: 80}, periodSeconds: 2}
+---
+# Exits immediately: CrashLoopBackOff.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: crashloop, namespace: kel-lab, labels: {app: crashloop}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: crashloop}}
+  template:
+    metadata: {labels: {app: crashloop}}
+    spec:
+      containers:
+      - name: app
+        image: busybox:1.36
+        command: ["sh", "-c", "echo starting; exit 1"]
+---
+# Image tag that doesn't exist: ErrImagePull / ImagePullBackOff.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: bad-image, namespace: kel-lab, labels: {app: bad-image}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: bad-image}}
+  template:
+    metadata: {labels: {app: bad-image}}
+    spec:
+      containers:
+      - name: web
+        image: nginx:no-such-tag
+---
+# Reads 200MB into memory with a 32Mi limit: OOMKilled.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: oom, namespace: kel-lab, labels: {app: oom}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: oom}}
+  template:
+    metadata: {labels: {app: oom}}
+    spec:
+      containers:
+      - name: hog
+        image: busybox:1.36
+        command: ["sh", "-c", "head -c 200m /dev/zero | tail"]
+        resources: {limits: {memory: 32Mi}}
+---
+# Running but never Ready (probe hits a 404). No crash, no image error.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: never-ready, namespace: kel-lab, labels: {app: never-ready}}
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 30
+  selector: {matchLabels: {app: never-ready}}
+  template:
+    metadata: {labels: {app: never-ready}}
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.27
+        readinessProbe: {httpGet: {path: /nope, port: 80}, periodSeconds: 2}
+---
+# Starts healthy; we then set a bad image. Old pods keep serving.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: stuck-rollout, namespace: kel-lab, labels: {app: stuck-rollout}}
+spec:
+  replicas: 2
+  progressDeadlineSeconds: 30
+  strategy: {rollingUpdate: {maxUnavailable: 0, maxSurge: 1}}
+  selector: {matchLabels: {app: stuck-rollout}}
+  template:
+    metadata: {labels: {app: stuck-rollout}}
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.27
+        readinessProbe: {httpGet: {path: /, port: 80}, periodSeconds: 2}
+---
+# Scaled to zero on purpose: should count as healthy, not broken.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: scaled-zero, namespace: kel-lab, labels: {app: scaled-zero}}
+spec:
+  replicas: 0
+  selector: {matchLabels: {app: scaled-zero}}
+  template:
+    metadata: {labels: {app: scaled-zero}}
+    spec:
+      containers: [{name: web, image: nginx:1.27}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: db, namespace: kel-lab, labels: {app: db}}
+spec:
+  clusterIP: None
+  selector: {app: db}
+  ports: [{port: 80}]
+---
+# Healthy StatefulSet.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: db, namespace: kel-lab, labels: {app: db}}
+spec:
+  serviceName: db
+  replicas: 2
+  selector: {matchLabels: {app: db}}
+  template:
+    metadata: {labels: {app: db}}
+    spec:
+      containers: [{name: db, image: nginx:1.27}]
+---
+# Job that succeeds.
+apiVersion: batch/v1
+kind: Job
+metadata: {name: job-ok, namespace: kel-lab, labels: {app: job-ok}}
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers: [{name: run, image: busybox:1.36, command: ["sh", "-c", "echo done"]}]
+---
+# Job that fails twice and gives up.
+apiVersion: batch/v1
+kind: Job
+metadata: {name: job-fail, namespace: kel-lab, labels: {app: job-fail}}
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers: [{name: run, image: busybox:1.36, command: ["sh", "-c", "exit 3"]}]
+---
+# Init container exits 1: the app container never starts.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: init-crash, namespace: kel-lab, labels: {app: init-crash}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: init-crash}}
+  template:
+    metadata: {labels: {app: init-crash}}
+    spec:
+      initContainers:
+      - {name: migrate, image: busybox:1.36, command: ["sh", "-c", "exit 1"]}
+      containers: [{name: web, image: nginx:1.27}]
+---
+# Crashes 3 times, then runs fine: recovered, not crashing.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: recovered, namespace: kel-lab, labels: {app: recovered}}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: recovered}}
+  template:
+    metadata: {labels: {app: recovered}}
+    spec:
+      volumes: [{name: state, emptyDir: {}}]
+      containers:
+      - name: app
+        image: busybox:1.36
+        volumeMounts: [{name: state, mountPath: /state}]
+        command: ["sh", "-c", "n=$(cat /state/n 2>/dev/null || echo 0); echo $((n+1)) > /state/n; [ $n -ge 3 ] || exit 1; exec sleep 3600"]
