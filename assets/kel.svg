@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 96" role="img" aria-label="KEL, the Kubernetes Expression Library">
+  <style>
+    .brace { fill: none; stroke: #326CE5; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+    .object { fill: #326CE5; }
+    .wordmark { fill: #14213D; }
+    .subtitle { fill: #5B6475; }
+    @media (prefers-color-scheme: dark) {
+      .brace { stroke: #6E9BF5; }
+      .object { fill: #6E9BF5; }
+      .wordmark { fill: #F0F3F6; }
+      .subtitle { fill: #A3ACBA; }
+    }
+  </style>
+
+  <!-- Mark: a template expression {{ }} holding a heptagon, a Kubernetes object -->
+  <g transform="translate(16 24)">
+    <path class="brace" d="M14 0 C7 0 6 3 6 10 L6 17 C6 21.5 4 24 0 24 C4 24 6 26.5 6 31 L6 38 C6 45 7 48 14 48"/>
+    <path class="brace" d="M14 0 C7 0 6 3 6 10 L6 17 C6 21.5 4 24 0 24 C4 24 6 26.5 6 31 L6 38 C6 45 7 48 14 48" transform="translate(11 0)"/>
+    <g transform="translate(46 24)">
+      <polygon class="object" points="0.00,-13.00 10.16,-8.11 12.67,2.89 5.64,11.71 -5.64,11.71 -12.67,2.89 -10.16,-8.11" stroke-linejoin="round"/>
+    </g>
+    <g transform="translate(92 0) scale(-1 1)">
+      <path class="brace" d="M14 0 C7 0 6 3 6 10 L6 17 C6 21.5 4 24 0 24 C4 24 6 26.5 6 31 L6 38 C6 45 7 48 14 48"/>
+      <path class="brace" d="M14 0 C7 0 6 3 6 10 L6 17 C6 21.5 4 24 0 24 C4 24 6 26.5 6 31 L6 38 C6 45 7 48 14 48" transform="translate(11 0)"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <text class="wordmark" x="128" y="54"
+        font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+        font-size="40" font-weight="700" letter-spacing="3">KEL</text>
+  <text class="subtitle" x="130" y="74"
+        font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+        font-size="10.5" font-weight="600" letter-spacing="1.2">KUBERNETES EXPRESSION LIBRARY</text>
+</svg>

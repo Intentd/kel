@@ -1,0 +1,541 @@
+{
+ "kubernetes": "v1.37.0",
+ "pods": {
+  "apiVersion": "v1",
+  "items": [
+   {
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+     "creationTimestamp": "2026-10-20T11:22:34Z",
+     "generateName": "job-fail-",
+     "generation": 1,
+     "labels": {
+      "batch.kubernetes.io/controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+      "batch.kubernetes.io/job-name": "job-fail",
+      "controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+      "job-name": "job-fail"
+     },
+     "name": "job-fail-94h7w",
+     "namespace": "kel-lab",
+     "ownerReferences": [
+      {
+       "apiVersion": "batch/v1",
+       "blockOwnerDeletion": true,
+       "controller": true,
+       "kind": "Job",
+       "name": "job-fail",
+       "uid": "7b72f084-4088-4f0a-88e7-9738f51621bd"
+      }
+     ],
+     "resourceVersion": "999",
+     "uid": "ad026d2b-dbee-4be1-8d59-9ff4d6a040a8"
+    },
+    "spec": {
+     "containers": [
+      {
+       "command": [
+        "sh",
+        "-c",
+        "exit 3"
+       ],
+       "image": "busybox:1.36",
+       "imagePullPolicy": "IfNotPresent",
+       "name": "run",
+       "resources": {},
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+         "name": "kube-api-access-ppbmv",
+         "readOnly": true
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "enableServiceLinks": true,
+     "nodeName": "ork-playground-control-plane",
+     "preemptionPolicy": "PreemptLowerPriority",
+     "priority": 0,
+     "restartPolicy": "Never",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "serviceAccount": "default",
+     "serviceAccountName": "default",
+     "terminationGracePeriodSeconds": 30,
+     "tolerations": [
+      {
+       "effect": "NoExecute",
+       "key": "node.kubernetes.io/not-ready",
+       "operator": "Exists",
+       "tolerationSeconds": 300
+      },
+      {
+       "effect": "NoExecute",
+       "key": "node.kubernetes.io/unreachable",
+       "operator": "Exists",
+       "tolerationSeconds": 300
+      }
+     ],
+     "volumes": [
+      {
+       "name": "kube-api-access-ppbmv",
+       "projected": {
+        "defaultMode": 420,
+        "sources": [
+         {
+          "serviceAccountToken": {
+           "expirationSeconds": 3607,
+           "path": "token"
+          }
+         },
+         {
+          "configMap": {
+           "items": [
+            {
+             "key": "ca.crt",
+             "path": "ca.crt"
+            }
+           ],
+           "name": "kube-root-ca.crt"
+          }
+         },
+         {
+          "downwardAPI": {
+           "items": [
+            {
+             "fieldRef": {
+              "apiVersion": "v1",
+              "fieldPath": "metadata.namespace"
+             },
+             "path": "namespace"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "status": {
+     "conditions": [
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:37Z",
+       "message": "pod sandbox is not ready",
+       "observedGeneration": 1,
+       "reason": "PodSandboxNotReady",
+       "status": "False",
+       "type": "PodReadyToStartContainers"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:34Z",
+       "observedGeneration": 1,
+       "status": "True",
+       "type": "Initialized"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:36Z",
+       "observedGeneration": 1,
+       "reason": "PodFailed",
+       "status": "False",
+       "type": "Ready"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:36Z",
+       "observedGeneration": 1,
+       "reason": "PodFailed",
+       "status": "False",
+       "type": "ContainersReady"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:34Z",
+       "observedGeneration": 1,
+       "status": "True",
+       "type": "PodScheduled"
+      }
+     ],
+     "containerStatuses": [
+      {
+       "containerID": "containerd://2134b0526ffafb10dafb468eb5b3d9f33f24704ed12eb125a8999103ac4d82a2",
+       "image": "docker.io/library/busybox:1.36",
+       "imageID": "docker.io/library/busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662",
+       "lastState": {},
+       "name": "run",
+       "ready": false,
+       "resources": {},
+       "restartCount": 0,
+       "started": false,
+       "state": {
+        "terminated": {
+         "containerID": "containerd://2134b0526ffafb10dafb468eb5b3d9f33f24704ed12eb125a8999103ac4d82a2",
+         "exitCode": 3,
+         "finishedAt": "2026-10-20T11:22:35Z",
+         "reason": "Error",
+         "startedAt": "2026-10-20T11:22:35Z"
+        }
+       },
+       "user": {
+        "linux": {
+         "gid": 0,
+         "supplementalGroups": [
+          0,
+          10
+         ],
+         "uid": 0
+        }
+       },
+       "volumeMounts": [
+        {
+         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+         "name": "kube-api-access-ppbmv",
+         "readOnly": true,
+         "recursiveReadOnly": "Disabled"
+        }
+       ]
+      }
+     ],
+     "hostIP": "172.18.0.2",
+     "hostIPs": [
+      {
+       "ip": "172.18.0.2"
+      }
+     ],
+     "observedGeneration": 1,
+     "phase": "Failed",
+     "podIP": "10.244.0.17",
+     "podIPs": [
+      {
+       "ip": "10.244.0.17"
+      }
+     ],
+     "qosClass": "BestEffort",
+     "resources": {},
+     "startTime": "2026-10-20T11:22:34Z"
+    }
+   },
+   {
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+     "creationTimestamp": "2026-10-20T11:22:09Z",
+     "generateName": "job-fail-",
+     "generation": 1,
+     "labels": {
+      "batch.kubernetes.io/controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+      "batch.kubernetes.io/job-name": "job-fail",
+      "controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+      "job-name": "job-fail"
+     },
+     "name": "job-fail-gm4dp",
+     "namespace": "kel-lab",
+     "ownerReferences": [
+      {
+       "apiVersion": "batch/v1",
+       "blockOwnerDeletion": true,
+       "controller": true,
+       "kind": "Job",
+       "name": "job-fail",
+       "uid": "7b72f084-4088-4f0a-88e7-9738f51621bd"
+      }
+     ],
+     "resourceVersion": "941",
+     "uid": "ed2007bd-8f81-4284-9698-393de6e749a5"
+    },
+    "spec": {
+     "containers": [
+      {
+       "command": [
+        "sh",
+        "-c",
+        "exit 3"
+       ],
+       "image": "busybox:1.36",
+       "imagePullPolicy": "IfNotPresent",
+       "name": "run",
+       "resources": {},
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File",
+       "volumeMounts": [
+        {
+         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+         "name": "kube-api-access-9lppv",
+         "readOnly": true
+        }
+       ]
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "enableServiceLinks": true,
+     "nodeName": "ork-playground-control-plane",
+     "preemptionPolicy": "PreemptLowerPriority",
+     "priority": 0,
+     "restartPolicy": "Never",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "serviceAccount": "default",
+     "serviceAccountName": "default",
+     "terminationGracePeriodSeconds": 30,
+     "tolerations": [
+      {
+       "effect": "NoExecute",
+       "key": "node.kubernetes.io/not-ready",
+       "operator": "Exists",
+       "tolerationSeconds": 300
+      },
+      {
+       "effect": "NoExecute",
+       "key": "node.kubernetes.io/unreachable",
+       "operator": "Exists",
+       "tolerationSeconds": 300
+      }
+     ],
+     "volumes": [
+      {
+       "name": "kube-api-access-9lppv",
+       "projected": {
+        "defaultMode": 420,
+        "sources": [
+         {
+          "serviceAccountToken": {
+           "expirationSeconds": 3607,
+           "path": "token"
+          }
+         },
+         {
+          "configMap": {
+           "items": [
+            {
+             "key": "ca.crt",
+             "path": "ca.crt"
+            }
+           ],
+           "name": "kube-root-ca.crt"
+          }
+         },
+         {
+          "downwardAPI": {
+           "items": [
+            {
+             "fieldRef": {
+              "apiVersion": "v1",
+              "fieldPath": "metadata.namespace"
+             },
+             "path": "namespace"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "status": {
+     "conditions": [
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:26Z",
+       "message": "pod sandbox is not ready",
+       "observedGeneration": 1,
+       "reason": "PodSandboxNotReady",
+       "status": "False",
+       "type": "PodReadyToStartContainers"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:09Z",
+       "observedGeneration": 1,
+       "status": "True",
+       "type": "Initialized"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:25Z",
+       "observedGeneration": 1,
+       "reason": "PodFailed",
+       "status": "False",
+       "type": "Ready"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:25Z",
+       "observedGeneration": 1,
+       "reason": "PodFailed",
+       "status": "False",
+       "type": "ContainersReady"
+      },
+      {
+       "lastProbeTime": null,
+       "lastTransitionTime": "2026-10-20T11:22:09Z",
+       "observedGeneration": 1,
+       "status": "True",
+       "type": "PodScheduled"
+      }
+     ],
+     "containerStatuses": [
+      {
+       "containerID": "containerd://7fb053ec1214c6073cf53bc7e064db6114928ae84c3aab78145cf1d82e4601be",
+       "image": "docker.io/library/busybox:1.36",
+       "imageID": "docker.io/library/busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662",
+       "lastState": {},
+       "name": "run",
+       "ready": false,
+       "resources": {},
+       "restartCount": 0,
+       "started": false,
+       "state": {
+        "terminated": {
+         "containerID": "containerd://7fb053ec1214c6073cf53bc7e064db6114928ae84c3aab78145cf1d82e4601be",
+         "exitCode": 3,
+         "finishedAt": "2026-10-20T11:22:24Z",
+         "reason": "Error",
+         "startedAt": "2026-10-20T11:22:24Z"
+        }
+       },
+       "user": {
+        "linux": {
+         "gid": 0,
+         "supplementalGroups": [
+          0,
+          10
+         ],
+         "uid": 0
+        }
+       },
+       "volumeMounts": [
+        {
+         "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+         "name": "kube-api-access-9lppv",
+         "readOnly": true,
+         "recursiveReadOnly": "Disabled"
+        }
+       ]
+      }
+     ],
+     "hostIP": "172.18.0.2",
+     "hostIPs": [
+      {
+       "ip": "172.18.0.2"
+      }
+     ],
+     "observedGeneration": 1,
+     "phase": "Failed",
+     "podIP": "10.244.0.14",
+     "podIPs": [
+      {
+       "ip": "10.244.0.14"
+      }
+     ],
+     "qosClass": "BestEffort",
+     "resources": {},
+     "startTime": "2026-10-20T11:22:09Z"
+    }
+   }
+  ],
+  "kind": "List",
+  "metadata": {
+   "resourceVersion": ""
+  }
+ },
+ "workload": {
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+   "annotations": {
+    "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"job-fail\"},\"name\":\"job-fail\",\"namespace\":\"kel-lab\"},\"spec\":{\"backoffLimit\":1,\"template\":{\"spec\":{\"containers\":[{\"command\":[\"sh\",\"-c\",\"exit 3\"],\"image\":\"busybox:1.36\",\"name\":\"run\"}],\"restartPolicy\":\"Never\"}}}}\n"
+   },
+   "creationTimestamp": "2026-10-20T11:22:09Z",
+   "generation": 1,
+   "labels": {
+    "app": "job-fail",
+    "batch.kubernetes.io/controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+    "batch.kubernetes.io/job-name": "job-fail",
+    "controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+    "job-name": "job-fail"
+   },
+   "name": "job-fail",
+   "namespace": "kel-lab",
+   "resourceVersion": "2586",
+   "uid": "7b72f084-4088-4f0a-88e7-9738f51621bd"
+  },
+  "spec": {
+   "backoffLimit": 1,
+   "completionMode": "NonIndexed",
+   "completions": 1,
+   "manualSelector": false,
+   "parallelism": 1,
+   "podReplacementPolicy": "TerminatingOrFailed",
+   "selector": {
+    "matchLabels": {
+     "batch.kubernetes.io/controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd"
+    }
+   },
+   "suspend": false,
+   "template": {
+    "metadata": {
+     "labels": {
+      "batch.kubernetes.io/controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+      "batch.kubernetes.io/job-name": "job-fail",
+      "controller-uid": "7b72f084-4088-4f0a-88e7-9738f51621bd",
+      "job-name": "job-fail"
+     }
+    },
+    "spec": {
+     "containers": [
+      {
+       "command": [
+        "sh",
+        "-c",
+        "exit 3"
+       ],
+       "image": "busybox:1.36",
+       "imagePullPolicy": "IfNotPresent",
+       "name": "run",
+       "resources": {},
+       "terminationMessagePath": "/dev/termination-log",
+       "terminationMessagePolicy": "File"
+      }
+     ],
+     "dnsPolicy": "ClusterFirst",
+     "restartPolicy": "Never",
+     "schedulerName": "default-scheduler",
+     "securityContext": {},
+     "terminationGracePeriodSeconds": 30
+    }
+   }
+  },
+  "status": {
+   "conditions": [
+    {
+     "lastProbeTime": "2026-10-20T11:22:38Z",
+     "lastTransitionTime": "2026-10-20T11:22:38Z",
+     "message": "Job has reached the specified backoff limit",
+     "reason": "BackoffLimitExceeded",
+     "status": "True",
+     "type": "FailureTarget"
+    },
+    {
+     "lastProbeTime": "2026-10-20T11:22:38Z",
+     "lastTransitionTime": "2026-10-20T11:22:38Z",
+     "message": "Job has reached the specified backoff limit",
+     "reason": "BackoffLimitExceeded",
+     "status": "True",
+     "type": "Failed"
+    }
+   ],
+   "failed": 2,
+   "ready": 0,
+   "startTime": "2026-10-20T11:22:09Z",
+   "terminating": 0,
+   "uncountedTerminatedPods": {}
+  }
+ }
+}
