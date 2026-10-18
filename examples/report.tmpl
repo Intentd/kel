@@ -1,0 +1,9 @@
+{{ name .deployment }} in {{ namespace .deployment }}
+  rollout:   {{ if rolloutComplete .deployment }}complete{{ else }}in progress{{ end }}
+  ready:     {{ readyPodCount .pods }}/{{ podCount .pods }} pods
+{{- if hasCrashingPod .pods }}
+  crashing:  {{ join (podContainerReasons .pods) ", " }} (most restarts: {{ podMaxRestarts .pods }})
+{{- end }}
+{{- if hasWarnings .events }}
+  warning:   {{ firstWarning .events }}
+{{- end }}
