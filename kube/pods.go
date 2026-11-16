@@ -420,9 +420,9 @@ func podReady(pod map[string]interface{}) bool {
 	conds, _ := nested(pod, "status", "conditions").([]interface{})
 	for _, c := range conds {
 		cm, _ := c.(map[string]interface{})
-		if t, _ := cm["type"].(string); t == "Ready" {
+		if t, _ := cm["type"].(string); conditionType(t) == condReady {
 			s, _ := cm["status"].(string)
-			return s == "True"
+			return conditionStatus(s) == condTrue
 		}
 	}
 	return false

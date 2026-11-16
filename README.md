@@ -42,6 +42,7 @@ A few of the things KEL's functions account for, so their callers don't have to:
 - **Status can be about an older spec.** Until `status.observedGeneration` reaches `metadata.generation`, the controller hasn't acted on the latest change. `rolloutComplete` and `conditionsHealthy` treat that as not done.
 - **`Available` isn't finished.** A Deployment stays `Available` on its old pods while the new ones fail. `rolloutComplete` follows the rules `kubectl rollout status` uses; `conditionsHealthy` also reads `Progressing`.
 - **Most operators agree on conditions.** `Ready`, `Stalled`, `Reconciling` and `Synced` mean the same thing across many projects' resources, so `conditionsHealthy` answers for kinds KEL has never seen.
+- **`Ready: False` doesn't always mean failed.** For the RabbitMQ Topology Operator or Flux without `Stalled` it does; for Crossplane while creating (`Synced: True`) or cert-manager while issuing (`Issuing: True`) it means not yet. `conditionsState` tells `healthy`, `progressing`, `failed` and `unknown` apart, and `conditionsStateMessage` says why.
 - **Typed objects arrive without their kind.** Objects from a typed client-go list call have an empty `TypeMeta`. KEL takes the kind from the Go type.
 
 ## Install
@@ -108,6 +109,8 @@ A few examples:
 |---|---|
 | `{{ rolloutComplete .deployment }}` | Has the rollout finished, by the rules `kubectl rollout status` uses for Deployments, StatefulSets and DaemonSets? |
 | `{{ conditionsHealthy .obj }}` | Do the object's standard conditions say it's healthy, for any kind that reports them? |
+| `{{ conditionsState .obj }}` | Is it healthy, still progressing, or failed (and `conditionsStateMessage` says why)? |
+| `{{ expectState (get .obj "status" "applied") true false }}` | The same verdict from one field, for kinds that report a field instead of conditions |
 | `{{ conditionReason .obj "Ready" }}` | Why is the Ready condition in its current state? |
 | `{{ hasCrashingPod .pods }}` | Is any container failing right now? |
 | `{{ podOOMKilledDetected .pods }}` | Is any container failing because it runs out of memory? |

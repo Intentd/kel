@@ -43,6 +43,20 @@ helmRelease:
     conditions:
       - {type: Ready, status: "True", reason: InstallSucceeded, observedGeneration: 4}
       - {type: Released, status: "True", reason: InstallSucceeded}
+permission:
+  apiVersion: rabbitmq.com/v1beta1
+  kind: Permission
+  metadata: {name: app-permission-orders-app, namespace: payments, generation: 1}
+  status:
+    observedGeneration: 1
+    conditions:
+      - {type: Ready, status: "False", reason: FailedCreateOrUpdate, message: "failed create Permission, missing User"}
+database:
+  apiVersion: postgresql.cnpg.io/v1
+  kind: Database
+  metadata: {name: app-postgres-orders, namespace: payments, generation: 1}
+  spec: {name: orders, owner: orders, cluster: {name: app-postgres}}
+  status: {applied: true, observedGeneration: 1}
 deployment:
   apiVersion: apps/v1
   kind: Deployment

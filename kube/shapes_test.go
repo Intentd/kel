@@ -159,6 +159,127 @@ func TestConditionsHealthy(t *testing.T) {
 	assert.True(t, ConditionsHealthy(noObserved))
 }
 
+func TestConditionsState(t *testing.T) {
+	cond := func(typ, status string, msg ...string) m {
+		c := m{"type": typ, "status": status}
+		if len(msg) > 0 {
+			c["message"] = msg[0]
+		}
+		return c
+	}
+	obj := func(gen, observed int64, conds ...m) m {
+		cs := l{}
+		for _, c := range conds {
+			cs = append(cs, c)
+		}
+		return m{"metadata": m{"generation": gen}, "status": m{"observedGeneration": observed, "conditions": cs}}
+	}
+
+	cases := []struct {
+		name    string
+		obj     interface{}
+		state   State
+		message string
+	}{
+		// Rule 1: a status about an older spec says nothing about the new one.
+		{"status about an older spec", obj(3, 2, cond("Ready", "False", "boom")), StateProgressing, ""},
+		{"Ready about an older spec", obj(4, 4, m{"type": "Ready", "status": "True", "observedGeneration": int64(3)}), StateProgressing, ""},
+		{"Stalled about an older spec", obj(3, 2, cond("Stalled", "True", "gave up")), StateProgressing, ""},
+
+		// Rules 2-4: explicit failures, even with Ready still True from before.
+		{"Stalled (kstatus, Flux)", obj(2, 2, cond("Ready", "True"), cond("Stalled", "True", "dependency not ready")), StateFailed, "dependency not ready"},
+		{"Synced False (Crossplane)", obj(2, 2, cond("Ready", "True"), cond("Synced", "False", "cannot get external resource")), StateFailed, "cannot get external resource"},
+		{"progress deadline exceeded (Deployment)", obj(2, 2, cond("Available", "True"), cond("Progressing", "False", "exceeded its progress deadline")), StateFailed, "exceeded its progress deadline"},
+
+		// Rule 5.
+		{"Reconciling (Flux)", obj(2, 2, cond("Ready", "True"), cond("Reconciling", "True", "running health checks")), StateProgressing, "running health checks"},
+
+		// Rule 6.
+		{"Ready", obj(2, 2, cond("Ready", "True", "Applied revision: main@sha1:abc")), StateHealthy, "Applied revision: main@sha1:abc"},
+
+		// Rule 7: Ready False while something says work is under way.
+		{"Crossplane creating", obj(1, 1, cond("Synced", "True"), cond("Ready", "False", "Creating")), StateProgressing, "Creating"},
+		{"cert-manager issuing", obj(1, 1, cond("Ready", "False", "Issuing certificate as Secret does not exist"), cond("Issuing", "True")), StateProgressing, "Issuing certificate as Secret does not exist"},
+		{"Ready False while Progressing", obj(1, 1, cond("Ready", "False", "waiting"), cond("Progressing", "True")), StateProgressing, "waiting"},
+
+		// Rule 8: Ready False and nothing working on it, as the RabbitMQ Topology Operator reports a Permission whose User does not exist yet.
+		{"RabbitMQ Permission without its User", obj(1, 1, m{"type": "Ready", "status": "False", "reason": "FailedCreateOrUpdate", "message": "failed create Permission, missing User"}), StateFailed, "failed create Permission, missing User"},
+		{"Flux failing without Stalled", obj(2, 2, cond("Ready", "False", "install retries exhausted")), StateFailed, "install retries exhausted"},
+
+		// Rule 9.
+		{"Ready Unknown", obj(1, 1, cond("Ready", "Unknown", "reconciliation in progress")), StateProgressing, "reconciliation in progress"},
+
+		// Rules 10-11: no Ready.
+		{"Available", obj(2, 2, cond("Available", "True", "Deployment has minimum availability."), cond("Progressing", "True")), StateHealthy, "Deployment has minimum availability."},
+		{"scaling up", obj(2, 2, cond("Available", "False", "Deployment does not have minimum availability."), cond("Progressing", "True")), StateProgressing, "Deployment does not have minimum availability."},
+
+		// Rule 12.
+		{"no conditions", obj(2, 2), StateUnknown, ""},
+		{"only other conditions", obj(1, 1, cond("PodScheduled", "True")), StateUnknown, ""},
+		{"nil", nil, StateUnknown, ""},
+
+		// No status.observedGeneration at all: not treated as stale.
+		{"no observedGeneration", m{"metadata": m{"generation": int64(5)}, "status": m{"conditions": l{cond("Ready", "True")}}}, StateHealthy, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.state, ConditionsState(c.obj))
+			assert.Equal(t, c.message, ConditionsStateMessage(c.obj))
+			assert.Equal(t, c.state == StateHealthy, ConditionsHealthy(c.obj), "conditionsHealthy agrees")
+		})
+	}
+}
+
+func TestExpectState(t *testing.T) {
+	cases := []struct {
+		name            string
+		value           interface{}
+		healthy, failed interface{}
+		want            State
+	}{
+		// A field instead of conditions: CloudNativePG's Database reports status.applied.
+		{"applied", true, true, false, StateHealthy},
+		{"not applied", false, true, false, StateFailed},
+		{"not reported yet", nil, true, false, StateProgressing},
+		{"empty", "", "Running", "Failed", StateProgressing},
+
+		// Compared as text: what YAML, JSON and Go give for the same value.
+		{"true matches \"true\"", "true", true, false, StateHealthy},
+		{"1 matches 1.0", float64(1), 1, 0, StateHealthy},
+
+		// Phases, with lists of either side.
+		{"phase", "Running", "Running", []interface{}{"Failed", "Unknown"}, StateHealthy},
+		{"failed phase", "Unknown", "Running", []interface{}{"Failed", "Unknown"}, StateFailed},
+		{"other phase", "Pending", "Running", []string{"Failed"}, StateProgressing},
+		{"several healthy", "Succeeded", []string{"Running", "Succeeded"}, "Failed", StateHealthy},
+
+		// No failed values: nothing counts as failed.
+		{"no failed values", "Setting up primary", "Cluster in healthy state", "", StateProgressing},
+		{"nil failed", "Failing over", "Cluster in healthy state", nil, StateProgressing},
+		{"empty failed list", "x", "y", []interface{}{}, StateProgressing},
+
+		// Healthy wins when a value is in both.
+		{"in both", "Ready", "Ready", "Ready", StateHealthy},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, ExpectState(c.value, c.healthy, c.failed))
+		})
+	}
+}
+
+func TestFirstState(t *testing.T) {
+	assert.Equal(t, StateFailed, FirstState(StateUnknown, StateFailed, StateHealthy), "the first that says something")
+	assert.Equal(t, StateProgressing, FirstState("", StateProgressing), "empty is skipped")
+	assert.Equal(t, StateHealthy, FirstState(StateHealthy, StateFailed))
+	assert.Equal(t, StateUnknown, FirstState(StateUnknown, ""))
+	assert.Equal(t, StateUnknown, FirstState())
+
+	// Conditions first, a field when the kind has no conditions KEL knows.
+	database := m{"metadata": m{"generation": int64(1)}, "status": m{"applied": true, "observedGeneration": int64(1)}}
+	assert.Equal(t, StateHealthy, FirstState(ConditionsState(database), ExpectState(Get(database, "status", "applied"), true, false)))
+}
+
 // lastTerminated sets a container status's last termination.
 func lastTerminated(cs m, reason string, exit int64) m {
 	cs["lastState"] = m{"terminated": m{"reason": reason, "exitCode": exit}}

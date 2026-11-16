@@ -7,6 +7,41 @@ import (
 	"testing"
 )
 
+func TestFunctionList(t *testing.T) {
+	if got := List("Failed", "Unknown"); !reflect.DeepEqual(got, []interface{}{"Failed", "Unknown"}) {
+		t.Errorf("List = %v", got)
+	}
+	if got := List(); got == nil || len(got) != 0 {
+		t.Errorf("List() = %#v, want an empty list", got)
+	}
+	// Readable by the other list functions.
+	if !ListHas(List(1, "a"), "a") || ListLen(List(1, 2, 3)) != 3 {
+		t.Error("list not readable by listHas/listLen")
+	}
+}
+
+func TestFunctionMap(t *testing.T) {
+	got, err := Map("region", "eu-west-1", "replicas", 3, 7, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]interface{}{"region": "eu-west-1", "replicas": 3, "7": true}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Map = %v, want %v", got, want)
+	}
+	if got, err := Map(); err != nil || got == nil || len(got) != 0 {
+		t.Errorf("Map() = %#v, %v, want an empty map", got, err)
+	}
+	if _, err := Map("region"); err == nil {
+		t.Error("Map with a key and no value: want an error")
+	}
+	// Readable by the other map functions.
+	m, _ := Map("a", 1)
+	if MapGet(m, "a") != 1 {
+		t.Error("map not readable by mapGet")
+	}
+}
+
 func TestFunctionListHas(t *testing.T) {
 	tests := []struct {
 		name string

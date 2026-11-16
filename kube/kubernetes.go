@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"reflect"
 	"text/template"
 
 	"github.com/intentd/kel/internal/anymap"
@@ -47,10 +48,14 @@ func kubernetesFuncs() template.FuncMap {
 		"ownerName": OwnerName,
 
 		// ── Conditions ────────────────────────────────────────────────────────
-		"conditionsHealthy": ConditionsHealthy,
-		"hasCondition":      HasCondition,
-		"conditionReason":   ConditionReason,
-		"conditionMessage":  ConditionMessage,
+		"conditionsHealthy":      ConditionsHealthy,
+		"conditionsState":        ConditionsState,
+		"conditionsStateMessage": ConditionsStateMessage,
+		"expectState":            ExpectState,
+		"firstState":             FirstState,
+		"hasCondition":           HasCondition,
+		"conditionReason":        ConditionReason,
+		"conditionMessage":       ConditionMessage,
 
 		// ── Existence and lifecycle ───────────────────────────────────────────
 		"resourceExists": Exists,
@@ -444,6 +449,44 @@ func OwnerName(obj interface{}) string {
 // ────────────────────────────────────────────────────────────────
 //
 
+// conditionType is a condition's `type`: the standard ones KEL reads, shared
+// across Kubernetes and most operators.
+type conditionType string
+
+const (
+	condReady       conditionType = "Ready"
+	condAvailable   conditionType = "Available"
+	condProgressing conditionType = "Progressing"
+	condStalled     conditionType = "Stalled"     // kstatus, Flux: can't progress on its own
+	condReconciling conditionType = "Reconciling" // kstatus, Flux: work under way
+	condSynced      conditionType = "Synced"      // Crossplane: in sync with the provider
+	condIssuing     conditionType = "Issuing"     // cert-manager: a certificate is being issued
+)
+
+// conditionStatus is a condition's `status`.
+type conditionStatus string
+
+const (
+	condTrue  conditionStatus = "True"
+	condFalse conditionStatus = "False"
+)
+
+// State is a health verdict: what conditionsState and expectState return.
+// Templates compare it as text, e.g. {{ eq (conditionsState .) "failed" }}.
+type State string
+
+// The four verdicts.
+const (
+	// StateHealthy: done and working.
+	StateHealthy State = "healthy"
+	// StateProgressing: not there yet; keep waiting.
+	StateProgressing State = "progressing"
+	// StateFailed: it can't get there on its own; someone has to look.
+	StateFailed State = "failed"
+	// StateUnknown: nothing KEL knows says either way.
+	StateUnknown State = "unknown"
+)
+
 // ConditionsHealthy reports whether an object's standard conditions say it is
 // healthy, for any kind that reports them: Flux, cert-manager, Crossplane,
 // Argo and most operators. It is true when the controller has seen the latest
@@ -461,33 +504,197 @@ func OwnerName(obj interface{}) string {
 //	{{ conditionsHealthy .helmRelease }}  → true
 //	{{ conditionsHealthy .deployment }}  → true
 func ConditionsHealthy(obj interface{}) bool {
-	conds := map[string]map[string]interface{}{}
+	state, _ := conditionsVerdict(obj)
+	return state == StateHealthy
+}
+
+// ConditionsState reads an object's standard conditions into one of
+// "healthy", "progressing", "failed" or "unknown", for any kind that reports
+// them: Flux, cert-manager, Crossplane, Argo, Deployments and most operators.
+// It tells "not yet" from "failed", which conditionsHealthy does not. The first
+// rule that matches decides:
+//
+//   - progressing: status.observedGeneration (or Ready's own) is behind
+//     metadata.generation, so the status is about an older spec;
+//   - failed: Stalled is "True", Synced is "False" or Progressing is "False";
+//   - progressing: Reconciling is "True";
+//   - healthy: Ready is "True";
+//   - progressing: Ready is "False" while Progressing, Synced or Issuing is
+//     "True" (Crossplane creating, cert-manager issuing), or Ready is "Unknown";
+//   - failed: Ready is "False" otherwise;
+//   - without Ready: healthy when Available is "True", progressing when it is
+//     present but not "True";
+//   - unknown: none of these conditions.
+//
+// conditionsHealthy is true exactly when this is "healthy".
+//
+// Keywords: kubernetes, condition, ready, healthy, failed, degraded, progressing, status, health, argo, crd, operator
+//
+// Example:
+//
+//	{{ conditionsState .permission }}  → "failed"
+//	{{ conditionsState .helmRelease }}  → "healthy"
+//	{{ eq (conditionsState .permission) "failed" }}  → true
+func ConditionsState(obj interface{}) State {
+	state, _ := conditionsVerdict(obj)
+	return state
+}
+
+// ConditionsStateMessage returns the message of the condition that decided
+// conditionsState: Stalled, Synced, Progressing, Reconciling, Ready or
+// Available. Returns "" when no condition decided (a status about an older
+// spec, or no standard conditions) or the deciding condition has no message.
+//
+// Keywords: kubernetes, condition, message, status, health, reason, detail, argo
+//
+// Example:
+//
+//	{{ conditionsStateMessage .permission }}  → "failed create Permission, missing User"
+func ConditionsStateMessage(obj interface{}) string {
+	_, decidedBy := conditionsVerdict(obj)
+	if decidedBy == nil {
+		return ""
+	}
+	msg, _ := decidedBy["message"].(string)
+	return msg
+}
+
+// conditionsVerdict is the one set of rules behind ConditionsState,
+// ConditionsStateMessage and ConditionsHealthy: the state, and the condition that
+// decided it (nil when none did).
+func conditionsVerdict(obj interface{}) (State, map[string]interface{}) {
+	conds := map[conditionType]map[string]interface{}{}
 	list, _ := Status(obj)["conditions"].([]interface{})
 	for _, c := range list {
 		if cm, ok := c.(map[string]interface{}); ok {
 			if t, _ := cm["type"].(string); t != "" {
-				conds[t] = cm
+				conds[conditionType(t)] = cm
 			}
 		}
 	}
-	is := func(condType, want string) bool {
-		s, _ := conds[condType]["status"].(string)
-		return s == want
+	is := func(t conditionType, want conditionStatus) bool {
+		s, _ := conds[t]["status"].(string)
+		return conditionStatus(s) == want
 	}
+
 	gen := Generation(obj)
 	if observed, ok := Status(obj)["observedGeneration"]; ok && gen > 0 && toInt64(observed) < gen {
-		return false
+		return StateProgressing, nil
 	}
-	if is("Stalled", "True") || is("Reconciling", "True") || is("Progressing", "False") || is("Synced", "False") {
-		return false
-	}
-	if ready, ok := conds["Ready"]; ok {
+	if ready, ok := conds[condReady]; ok {
 		if observed, ok := ready["observedGeneration"]; ok && gen > 0 && toInt64(observed) < gen {
-			return false
+			return StateProgressing, nil
 		}
-		return is("Ready", "True")
 	}
-	return is("Available", "True")
+
+	switch {
+	case is(condStalled, condTrue):
+		return StateFailed, conds[condStalled]
+	case is(condSynced, condFalse):
+		return StateFailed, conds[condSynced]
+	case is(condProgressing, condFalse):
+		return StateFailed, conds[condProgressing]
+	case is(condReconciling, condTrue):
+		return StateProgressing, conds[condReconciling]
+	}
+
+	if ready, ok := conds[condReady]; ok {
+		switch {
+		case is(condReady, condTrue):
+			return StateHealthy, ready
+		case is(condReady, condFalse) && (is(condProgressing, condTrue) || is(condSynced, condTrue) || is(condIssuing, condTrue)):
+			return StateProgressing, ready
+		case is(condReady, condFalse):
+			return StateFailed, ready
+		default:
+			return StateProgressing, ready
+		}
+	}
+
+	if available, ok := conds[condAvailable]; ok {
+		if is(condAvailable, condTrue) {
+			return StateHealthy, available
+		}
+		return StateProgressing, available
+	}
+	return StateUnknown, nil
+}
+
+// ExpectState judges one status value the way conditionsState judges
+// conditions, for kinds that report a field instead of standard conditions:
+// "healthy" when the value matches healthy, "failed" when it matches failed,
+// and "progressing" otherwise, including when the value is absent or empty
+// (not reported yet). healthy and failed are each one value or a list (list,
+// toList or a Go slice); an empty failed means nothing counts as failed. Values are compared as text, so true matches "true" and 1 matches
+// 1.0. healthy wins when a value is in both. Find the value with get, phase or
+// status.
+//
+// Keywords: kubernetes, status, health, healthy, failed, progressing, phase, field, expect, operator, crd
+//
+// Example:
+//
+//	{{ expectState (get .database "status" "applied") true false }}  → "healthy"
+//	{{ expectState (phase .pod) "Running" (list "Failed" "Unknown") }}  → "healthy"
+func ExpectState(value, healthy, failed interface{}) State {
+	text, ok := stateText(value)
+	if !ok {
+		return StateProgressing
+	}
+	if stateMatches(text, healthy) {
+		return StateHealthy
+	}
+	if stateMatches(text, failed) {
+		return StateFailed
+	}
+	return StateProgressing
+}
+
+// FirstState returns the first of its states that says something: the first
+// that is neither "unknown" nor empty, or "unknown" when none does. It chains
+// a general rule and a fallback, such as conditions first and a phase when
+// the object has no conditions KEL knows.
+//
+// Keywords: kubernetes, status, health, state, fallback, combine, first, conditions, phase
+//
+// Example:
+//
+//	{{ firstState (conditionsState .database) (expectState (get .database "status" "applied") true false) }}  → "healthy"
+func FirstState(states ...State) State {
+	for _, state := range states {
+		if state != "" && state != StateUnknown {
+			return state
+		}
+	}
+	return StateUnknown
+}
+
+// stateText is a status value as text, and whether there is one: nil and
+// empty text are "not reported yet".
+func stateText(v interface{}) (string, bool) {
+	if v == nil {
+		return "", false
+	}
+	text := fmt.Sprint(v)
+	return text, text != ""
+}
+
+// stateMatches reports whether text equals want, or one of want's elements
+// when want is a list. Empty wants match nothing.
+func stateMatches(text string, want interface{}) bool {
+	if want == nil {
+		return false
+	}
+	rv := reflect.ValueOf(want)
+	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+		for i := 0; i < rv.Len(); i++ {
+			if w, ok := stateText(rv.Index(i).Interface()); ok && w == text {
+				return true
+			}
+		}
+		return false
+	}
+	w, ok := stateText(want)
+	return ok && w == text
 }
 
 // HasCondition returns `true` if `status.conditions` contains a condition of
@@ -507,7 +714,7 @@ func HasCondition(obj interface{}, condType string) bool {
 	for _, c := range conds {
 		if cm, ok := c.(map[string]interface{}); ok {
 			if t, ok := cm["type"].(string); ok && t == condType {
-				if s, ok := cm["status"].(string); ok && s == "True" {
+				if s, ok := cm["status"].(string); ok && conditionStatus(s) == condTrue {
 					return true
 				}
 			}

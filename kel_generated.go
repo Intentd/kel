@@ -4,7 +4,7 @@ package kel
 
 // BuiltinDomains is every domain, from the builders' doc comments.
 var BuiltinDomains = []DomainInfo{
-	{Name: "collections", Title: "Collections", Intro: "Convert a value that may arrive in several shapes (a native list or map, or the same as a JSON or YAML string) into a list, a map or a string, so the functions after it see one shape.\n\nRead lists and maps without guarding every step: get an element by index or a value by key, test membership, take keys and values, or keep and drop keys. Out-of-range and missing keys give zero values, not errors."},
+	{Name: "collections", Title: "Collections", Intro: "Convert a value that may arrive in several shapes (a native list or map, or the same as a JSON or YAML string) into a list, a map or a string, so the functions after it see one shape.\n\nBuild lists and maps, and read them without guarding every step: make a list or a map, get an element by index or a value by key, test membership, take keys and values, or keep and drop keys. Out-of-range and missing keys give zero values, not errors."},
 	{Name: "conditional", Title: "Conditional", Intro: "Choose between values inside an expression: defaults for empty values, the first non-empty of several, and ternaries, so a template does not need an if block for a one-line choice."},
 	{Name: "container", Title: "Container", Intro: "Read the containers of a workload (a Deployment, StatefulSet, Job, Pod, …, through its pod template): images, environment variables, ports and counts, by container index or name."},
 	{Name: "cron", Title: "Cron", Intro: "Work with five-field cron expressions (minute hour day-of-month month day-of-week): read single fields, build and normalise expressions, convert between the string form and a map with one key per field, describe a schedule in words, and check that an expression is valid."},
@@ -61,6 +61,13 @@ var BuiltinFunctions = []FunctionInfo{
 		Keywords:    []string{"string", "convert", "serialize", "json", "coerce", "stringify"},
 	},
 	{
+		Name:        "list",
+		Domain:      "collections",
+		Description: "list returns its arguments as a list, for functions that take several values in one argument, such as the failed values of expectState. With no arguments it returns an empty list.",
+		Example:     "{{ list \"Failed\" \"Unknown\" }}  → [Failed Unknown]\n{{ listLen (list 1 2 3) }}  → 3",
+		Keywords:    []string{"list", "collection", "build", "make", "slice", "array", "values", "literal"},
+	},
+	{
 		Name:        "listGet",
 		Domain:      "collections",
 		Description: "listGet returns the element at a given index. Returns `nil` for out-of-range indices — no panic.",
@@ -80,6 +87,13 @@ var BuiltinFunctions = []FunctionInfo{
 		Description: "listLen returns the number of elements in a list. Returns `0` for non-lists.",
 		Example:     "{{ listLen .spec.regions }}  → 2",
 		Keywords:    []string{"list", "collection", "length", "count", "slice", "size"},
+	},
+	{
+		Name:        "map",
+		Domain:      "collections",
+		Description: "map returns a map from alternating keys and values, the counterpart of list. Keys that are not strings are written as text. With no arguments it returns an empty map. An odd number of arguments is an error: a key without a value.",
+		Example:     "{{ mapGet (map \"region\" \"eu-west-1\" \"replicas\" 3) \"replicas\" }}  → 3\n{{ mapKeys (map \"b\" 2 \"a\" 1) }}  → [a b]",
+		Keywords:    []string{"map", "dict", "collection", "build", "make", "object", "keys", "values", "literal"},
 	},
 	{
 		Name:        "mapGet",
@@ -649,6 +663,34 @@ var BuiltinFunctions = []FunctionInfo{
 		Description: "conditionsHealthy reports whether an object's standard conditions say it is healthy, for any kind that reports them: Flux, cert-manager, Crossplane, Argo and most operators. It is true when the controller has seen the latest spec and either Ready, or Available when there is no Ready, is \"True\". It is false when there are no such conditions, Stalled or Reconciling is \"True\", Progressing or Synced is \"False\", or status.observedGeneration (or Ready's own observedGeneration) is behind metadata.generation. For a Deployment or StatefulSet use rolloutComplete as well: Available stays \"True\" while a rollout is stuck on old pods.",
 		Example:     "{{ conditionsHealthy .helmRelease }}  → true\n{{ conditionsHealthy .deployment }}  → true",
 		Keywords:    []string{"kubernetes", "condition", "ready", "healthy", "status", "crd", "flux", "cert-manager", "crossplane", "operator"},
+	},
+	{
+		Name:        "conditionsState",
+		Domain:      "kubernetes",
+		Description: "conditionsState reads an object's standard conditions into one of \"healthy\", \"progressing\", \"failed\" or \"unknown\", for any kind that reports them: Flux, cert-manager, Crossplane, Argo, Deployments and most operators. It tells \"not yet\" from \"failed\", which conditionsHealthy does not. The first rule that matches decides:\n\n- progressing: status.observedGeneration (or Ready's own) is behind metadata.generation, so the status is about an older spec;\n- failed: Stalled is \"True\", Synced is \"False\" or Progressing is \"False\";\n- progressing: Reconciling is \"True\";\n- healthy: Ready is \"True\";\n- progressing: Ready is \"False\" while Progressing, Synced or Issuing is \"True\" (Crossplane creating, cert-manager issuing), or Ready is \"Unknown\";\n- failed: Ready is \"False\" otherwise;\n- without Ready: healthy when Available is \"True\", progressing when it is present but not \"True\";\n- unknown: none of these conditions.\n\nconditionsHealthy is true exactly when this is \"healthy\".",
+		Example:     "{{ conditionsState .permission }}  → \"failed\"\n{{ conditionsState .helmRelease }}  → \"healthy\"\n{{ eq (conditionsState .permission) \"failed\" }}  → true",
+		Keywords:    []string{"kubernetes", "condition", "ready", "healthy", "failed", "degraded", "progressing", "status", "health", "argo", "crd", "operator"},
+	},
+	{
+		Name:        "conditionsStateMessage",
+		Domain:      "kubernetes",
+		Description: "conditionsStateMessage returns the message of the condition that decided conditionsState: Stalled, Synced, Progressing, Reconciling, Ready or Available. Returns \"\" when no condition decided (a status about an older spec, or no standard conditions) or the deciding condition has no message.",
+		Example:     "{{ conditionsStateMessage .permission }}  → \"failed create Permission, missing User\"",
+		Keywords:    []string{"kubernetes", "condition", "message", "status", "health", "reason", "detail", "argo"},
+	},
+	{
+		Name:        "expectState",
+		Domain:      "kubernetes",
+		Description: "expectState judges one status value the way conditionsState judges conditions, for kinds that report a field instead of standard conditions: \"healthy\" when the value matches healthy, \"failed\" when it matches failed, and \"progressing\" otherwise, including when the value is absent or empty (not reported yet). healthy and failed are each one value or a list (list, toList or a Go slice); an empty failed means nothing counts as failed. Values are compared as text, so true matches \"true\" and 1 matches 1.0. healthy wins when a value is in both. Find the value with get, phase or status.",
+		Example:     "{{ expectState (get .database \"status\" \"applied\") true false }}  → \"healthy\"\n{{ expectState (phase .pod) \"Running\" (list \"Failed\" \"Unknown\") }}  → \"healthy\"",
+		Keywords:    []string{"kubernetes", "status", "health", "healthy", "failed", "progressing", "phase", "field", "expect", "operator", "crd"},
+	},
+	{
+		Name:        "firstState",
+		Domain:      "kubernetes",
+		Description: "firstState returns the first of its states that says something: the first that is neither \"unknown\" nor empty, or \"unknown\" when none does. It chains a general rule and a fallback, such as conditions first and a phase when the object has no conditions KEL knows.",
+		Example:     "{{ firstState (conditionsState .database) (expectState (get .database \"status\" \"applied\") true false) }}  → \"healthy\"",
+		Keywords:    []string{"kubernetes", "status", "health", "state", "fallback", "combine", "first", "conditions", "phase"},
 	},
 	{
 		Name:        "generation",

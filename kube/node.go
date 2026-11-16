@@ -31,7 +31,7 @@ func nodeFuncs() template.FuncMap {
 //
 //	{{ nodeReady .node }}  → true
 func NodeReady(obj interface{}) bool {
-	return NodeCondition(obj, "Ready") == "True"
+	return conditionStatus(NodeCondition(obj, string(condReady))) == condTrue
 }
 
 // NodeAllocatableCPU returns `status.allocatable.cpu`.

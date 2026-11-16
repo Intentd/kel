@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"sort"
 	"text/template"
 
@@ -11,11 +12,13 @@ import (
 //
 // Domain: collections
 //
-// Read lists and maps without guarding every step: get an element by index or
-// a value by key, test membership, take keys and values, or keep and drop
-// keys. Out-of-range and missing keys give zero values, not errors.
+// Build lists and maps, and read them without guarding every step: make a
+// list or a map, get an element by index or a value by key, test membership, take keys
+// and values, or keep and drop keys. Out-of-range and missing keys give zero values, not errors.
 func listMapFuncs() template.FuncMap {
 	return template.FuncMap{
+		"list":      List,
+		"map":       Map,
 		"listHas":   ListHas,
 		"listGet":   ListGet,
 		"listLen":   ListLen,
@@ -25,6 +28,49 @@ func listMapFuncs() template.FuncMap {
 		"mapPick":   MapPick,
 		"mapOmit":   MapOmit,
 	}
+}
+
+// List returns its arguments as a list, for functions that take several
+// values in one argument, such as the failed values of expectState. With no
+// arguments it returns an empty list.
+//
+// Keywords: list, collection, build, make, slice, array, values, literal
+//
+// Example:
+//
+//	{{ list "Failed" "Unknown" }}  → [Failed Unknown]
+//	{{ listLen (list 1 2 3) }}  → 3
+func List(items ...interface{}) []interface{} {
+	if items == nil {
+		return []interface{}{}
+	}
+	return items
+}
+
+// Map returns a map from alternating keys and values, the counterpart of list.
+// Keys that are not strings are written as text. With no arguments it returns
+// an empty map. An odd number of arguments is an error: a key without a value.
+//
+// Keywords: map, dict, collection, build, make, object, keys, values, literal
+//
+// Example:
+//
+//	{{ mapGet (map "region" "eu-west-1" "replicas" 3) "replicas" }}  → 3
+//	{{ mapKeys (map "b" 2 "a" 1) }}  → [a b]
+func Map(pairs ...interface{}) (map[string]interface{}, error) {
+	pairsCount := len(pairs)
+	if (pairsCount % 2) != 0 {
+		return nil, fmt.Errorf("map: %d arguments, want key and value pairs", pairsCount)
+	}
+	m := make(map[string]interface{}, pairsCount/2)
+	for i := 0; i < pairsCount; i += 2 {
+		key, ok := pairs[i].(string)
+		if !ok {
+			key = fmt.Sprint(pairs[i])
+		}
+		m[key] = pairs[i+1]
+	}
+	return m, nil
 }
 
 // ListHas reports whether a list contains a value. Comparison is by `==`.
