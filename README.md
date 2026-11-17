@@ -13,7 +13,7 @@
   </p>
 </div>
 
-Functions that know Kubernetes, for Go templates and any engine that calls Go functions.
+Functions that know Kubernetes, for Go templates, CEL and any engine that calls Go functions.
 
 ```yaml
 {{ if hasCrashingPod .pods }}
@@ -21,7 +21,7 @@ crashing: {{ join (podContainerReasons .pods) ", " }}
 {{ end }}
 ```
 
-KEL is a library, not a language. There is no parser, grammar or runtime to learn: Go's `text/template` already composes functions with pipes. KEL adds functions that understand Kubernetes objects (Deployments, Pods, conditions, Events, …), and general helpers for the values around them: strings, numbers, time, cron, semver, Prometheus results and more.
+KEL is a library, not a language. There is no parser, grammar or runtime to learn: Go's `text/template` already composes functions with pipes, and CEL, the expression language Kubernetes uses for validation rules and admission policies, already composes calls. KEL adds functions that understand Kubernetes objects (Deployments, Pods, conditions, Events, …), and general helpers for the values around them: strings, numbers, time, cron, semver, Prometheus results and more.
 
 ## Why
 
@@ -93,9 +93,52 @@ if !kube.RolloutComplete(deployment) && kube.HasCrashingPod(pods) {
 selector.Matches(labels.Set(kube.Labels(pod).StringMap()))
 ```
 
+## Use it in CEL
+
+The `cel` module offers KEL's functions to CEL. Add its library to any `cel.Env`, and expressions can ask KEL's questions about the objects they are given:
+
+```bash
+go get github.com/intentd/kel/cel
+```
+
+```go
+import kelcel "github.com/intentd/kel/cel"
+
+env, err := kelcel.Env([]string{"object"}) // KEL's library, object declared
+ast, iss := env.Compile(`conditionsState(object) == "failed"`)
+```
+
+or add `kelcel.Library()` to an environment you build yourself. Both call styles work: `conditionsState(object)` and `object.conditionsState()`.
+
+The functions are KEL's own, called through their Go signatures, so a template and a CEL expression get the same answer. What CEL gets:
+
+- **Every `kube` and `ecosystem` function, and the cron and semver ones**, except the few that read the clock: a CEL expression must give the same answer every time. `kelcel.Excluded()` lists them with the reason.
+- **Not the general helpers** (strings, lists, maps, math, conversions): CEL has its own.
+- **KEL's names**, except where CEL reserves the word: `namespace` is `namespaceOf`. `kelcel.Functions()` maps each CEL name to the KEL function it calls.
+- **A trailing optional argument** takes none, one, or a list: `containerImage(object)`, `containerImage(object, 1)`, `get(object, ["status", "phase"])`.
+- **Costs for CEL's limits**: `kelcel.CostEstimator()` counts one per call, plus one per element of each list the call walks (pods, events, metric series).
+
+`kelcel.Native` turns a result back into plain Go maps and lists.
+
+## Check an expression before it runs
+
+`kel.Check` reports whether a template can run with KEL's functions: it parses, every function it calls exists, and each call passes as many arguments as the function takes. Parsing alone misses that last one, which otherwise only shows up when the template runs. Pass `FuncMap()` with your own functions added to check templates that use both.
+
+```go
+err := kel.Check(`{{ conditionsState .obj "Ready" }}`, nil)
+// conditionsState takes 1 argument, got 2
+```
+
+`kelcel.Check` is the CEL counterpart: it compiles an expression without running it, so a syntax error, an unknown function or variable, or a call with the wrong number or type of arguments fails there.
+
+```go
+err := kelcel.Check(`conditionsState(object, "Ready")`, []string{"object"})
+// found no matching overload for 'conditionsState'
+```
+
 ## What's inside
 
-The functions live in three packages, grouped by what they read:
+The functions live in three packages, grouped by what they read, and the `cel` module offers them to CEL:
 
 | Package | Reads | Domains |
 |---|---|---|
